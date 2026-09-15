@@ -5,9 +5,17 @@ build-backend = "hatchling.build"
 [project]
 name = "deep-research"
 version = "0.1.0"
-description = "AWS Strands deep-research backend"
+description = "Production-oriented multi-agent research backend with evidence-backed reports"
 readme = "README.md"
 requires-python = ">=3.13,<3.14"
+keywords = ["ai-agents", "deep-research", "fastapi", "multi-agent", "strands-agents"]
+classifiers = [
+  "Development Status :: 3 - Alpha",
+  "Framework :: FastAPI",
+  "Programming Language :: Python :: 3",
+  "Programming Language :: Python :: 3.13",
+  "Typing :: Typed",
+]
 dependencies = [
   "boto3>=1.40,<2",
   "fastapi>=0.115,<1",
@@ -35,6 +43,9 @@ dev = [
 deep-research-dev = "deep_research.dev_app:main"
 deep-research-run = "deep_research.cli:main"
 deep-research-worker = "deep_research.worker_app:main"
+
+[project.urls]
+Repository = "https://github.com/FlashPD/deep-research"
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/deep_research"]
