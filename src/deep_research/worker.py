@@ -1,5 +1,6 @@
 import asyncio
 import inspect
+import re
 import time
 from collections.abc import Awaitable, Callable
 from dataclasses import dataclass
@@ -46,6 +47,7 @@ from deep_research.models.gateway import (
     is_output_limit_error,
     is_provider_rejection_error,
 )
+from deep_research.models.spend import SpendLimitError
 from deep_research.orchestration.graph import BoundedResearchGraph
 from deep_research.persistence.runs import ConcurrencyConflictError
 from deep_research.services.runs import (
@@ -115,6 +117,9 @@ class DurableWorker:
                 await self._dispatcher.acknowledge(delivery)
             else:
                 await self._dispatcher.retry(delivery)
+        except SpendLimitError as exc:
+            await self._fail_delivery(delivery, "model_spend_limit", exc)
+            await self._dispatcher.acknowledge(delivery)
         except ResearchServiceConfigurationError as exc:
             await self._fail_delivery(delivery, "research_service_configuration", exc)
             await self._dispatcher.acknowledge(delivery)
@@ -901,6 +906,10 @@ def _research_budget_exhausted(run: ResearchRun) -> bool:
 
 
 def _initial_source_budget(plan: ResearchPlan) -> int:
+    if plan.budget.preset is DepthPreset.DEEP:
+        # Breadth is a ceiling. Keep the initial evidence packet reviewable and reserve
+        # capacity for targeted gaps instead of filling 75 slots before the first review.
+        return min(plan.budget.max_accepted_sources, 6 * len(plan.workstreams))
     if (
         plan.budget.preset is not DepthPreset.QUICK
         or plan.budget.reviewer_retries == 0
@@ -924,13 +933,14 @@ def _report_context(markdown: str, run: ResearchRun) -> ReportContext:
     assert run.plan is not None
     lines = markdown.splitlines()
     title = next((line[2:].strip() for line in lines if line.startswith("# ")), run.topic)
-    compact = " ".join(line.strip() for line in lines if line.strip() and not line.startswith("#"))
-    summary = compact[:2_000] or "The generated report contains no prose summary."
+    chunks = re.split(r"(?m)^## (.+)\n", markdown)
+    by_title = {chunks[i].strip(): chunks[i + 1].strip() for i in range(1, len(chunks), 2)}
+    summary = by_title.get("Executive summary", "No executive summary available.")[:2_000]
     sections = [
         ReportSectionSummary(
             section_id=section.id,
             title=section.title,
-            summary=f"See the generated report section: {section.title}.",
+            summary=by_title.get(section.title, "No section text available.")[:2_000],
         )
         for section in run.plan.outline
     ]
@@ -938,6 +948,9 @@ def _report_context(markdown: str, run: ResearchRun) -> ReportContext:
         title=title,
         executive_summary=summary,
         sections=sections,
-        conclusion=summary[-2_000:],
-        limitations=run.graph_checkpoint.limitations[:20],
+        conclusion=by_title.get("Conclusion", "No conclusion available.")[:2_000],
+        limitations=[
+            line.removeprefix("- ")[:2_000]
+            for line in by_title.get("Limitations", "").splitlines() if line.strip()
+        ][:20],
     )

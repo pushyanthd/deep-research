@@ -2,7 +2,7 @@ from functools import lru_cache
 from pathlib import Path
 from typing import Literal
 
-from pydantic import SecretStr
+from pydantic import Field, SecretStr
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 from deep_research.models.config import ModelProvider, ModelSettings
@@ -20,6 +20,9 @@ class AppSettings(BaseSettings):
     # Model IDs are consumed by config/models.yaml through ${VAR:-default} expansion. They are
     # declared here so values in .env reach the YAML (see load_models) instead of being ignored.
     openai_model_id: str | None = None
+    openai_report_model_id: str | None = None
+    openai_spend_limit_usd: float = Field(default=17, gt=0)
+    openai_spend_ledger_path: Path = Path(".data/openai-spend.sqlite")
     anthropic_model_id: str | None = None
     default_model_id: str | None = None
     tavily_api_key: SecretStr | None = None
@@ -51,6 +54,7 @@ class AppSettings(BaseSettings):
             name: value
             for name, value in {
                 "OPENAI_MODEL_ID": self.openai_model_id,
+                "OPENAI_REPORT_MODEL_ID": self.openai_report_model_id,
                 "ANTHROPIC_MODEL_ID": self.anthropic_model_id,
                 "DEFAULT_MODEL_ID": self.default_model_id,
                 "AWS_REGION": self.aws_region,

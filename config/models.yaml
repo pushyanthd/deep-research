@@ -38,7 +38,7 @@ models:
       required_env: ANTHROPIC_API_KEY
     openai_direct:
       provider: openai
-      model_id: ${OPENAI_MODEL_ID:-gpt-5.4}
+      model_id: ${OPENAI_MODEL_ID:-gpt-5.4-mini}
       temperature: 0.2
       max_tokens: 16384
       timeout_seconds: 240
@@ -46,7 +46,8 @@ models:
       required_env: OPENAI_API_KEY
     openai_report:
       provider: openai
-      model_id: ${OPENAI_MODEL_ID:-gpt-5.4}
+      model_id: ${OPENAI_REPORT_MODEL_ID:-gpt-5.4-mini}
+      reasoning_effort: medium
       temperature: 0.2
       max_tokens: 16384
       timeout_seconds: 300
@@ -56,6 +57,6 @@ models:
     clarifier: [bedrock_default, anthropic_direct, openai_direct]
     planner: [bedrock_default, anthropic_direct, openai_direct]
     researcher: [bedrock_default, anthropic_direct, openai_direct]
-    reviewer: [bedrock_default, anthropic_direct, openai_direct]
+    reviewer: [bedrock_default, anthropic_direct, openai_report]
     report: [bedrock_report, anthropic_report, openai_report]
     questions: [bedrock_default, anthropic_direct, openai_direct]

@@ -4,13 +4,14 @@ __pycache__/
 .ruff_cache/
 .coverage
 .env
+.data/
 *.py[cod]
-# Generated run output. Only the two committed sample reports are tracked.
+# Generated output stays local; selected raw portfolio artifacts are tracked.
 research-reports/
 reports/*
 !reports/Quick research sample report.md
 !reports/Deep research sample report.md
+!reports/showcase/
 dist/
 build/
 *.egg-info/
-

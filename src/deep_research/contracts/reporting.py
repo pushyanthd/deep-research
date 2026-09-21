@@ -32,6 +32,7 @@ class ReportSectionDraft(BaseModel):
     section_id: Identifier
     title: Annotated[str, Field(min_length=1, max_length=300)]
     content: MarkdownText
+    supporting_claim_ids: list[ClaimId] = Field(default_factory=list, max_length=100)
 
 
 class ReportedContradiction(BaseModel):
@@ -86,6 +87,8 @@ class ReportArtifact(BaseModel):
     markdown: MarkdownText
     checksum: Annotated[str, Field(pattern=r"^[a-f0-9]{64}$")]
     cited_source_ids: list[SourceId]
+    citation_map: dict[str, SourceId] = Field(default_factory=dict)
+    section_claim_ids: dict[str, list[ClaimId]] = Field(default_factory=dict)
     mermaid_validation: list[MermaidValidation]
     generation_metadata: ReportGenerationMetadata
 

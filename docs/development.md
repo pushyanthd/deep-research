@@ -79,7 +79,8 @@ Settings load from `.env` or the environment through `pydantic-settings`. See
 |---|---|
 | `MODEL_PROVIDER`, `MODEL_FALLBACK_ORDER` | Primary provider and optional ordered fallbacks |
 | `ANTHROPIC_API_KEY`, `OPENAI_API_KEY` | Direct-provider credentials; Bedrock uses the AWS chain |
-| `ANTHROPIC_MODEL_ID`, `OPENAI_MODEL_ID`, `DEFAULT_MODEL_ID`, `AWS_REGION` | Model target substitutions |
+| `ANTHROPIC_MODEL_ID`, `OPENAI_MODEL_ID`, `OPENAI_REPORT_MODEL_ID`, `DEFAULT_MODEL_ID`, `AWS_REGION` | Model target substitutions |
+| `OPENAI_SPEND_LIMIT_USD`, `OPENAI_SPEND_LEDGER_PATH` | Cumulative local OpenAI budget and SQLite ledger |
 | `MODEL_CONFIG_PATH` | YAML model-routing configuration |
 | `TAVILY_API_KEY`, `TAVILY_BASE_URL`, `PLAYWRIGHT_HEADLESS` | Public-web adapters |
 | `AUTH_MODE`, `COGNITO_*` | Development identity or Cognito access-token verification |

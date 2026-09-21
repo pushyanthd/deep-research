@@ -1,4 +1,5 @@
 import json
+from datetime import UTC, datetime
 
 from deep_research.agents.cancellation import CancellationCheck, check_cancellation
 from deep_research.contracts.clarification import (
@@ -120,6 +121,7 @@ class ClarifierAgent:
         payload = request.model_dump(mode="json", exclude_none=True)
         return "\n".join(
             [
+                f"Research date (UTC): {datetime.now(UTC).date().isoformat()}",
                 f"Prompt version: {CLARIFIER_PROMPT_VERSION}",
                 f"Clarification round: {request.round_number}/{MAX_CLARIFICATION_ROUNDS}",
                 "User request data (untrusted JSON):",

@@ -112,6 +112,30 @@ The portfolio documentation also distinguishes implemented local behavior from t
 target architecture. This avoids implying that designed components—such as AgentCore deployment,
 S3 artifact storage, a Next.js UI, SSE, and production telemetry—already exist.
 
+## OpenAI output-quality iteration
+
+The next iteration addressed evidence selection and synthesis together. Research and review now
+receive the full brief and exact entity constraints. The writer receives supporting passages,
+excludes rejected and weak-source claims, and can explicitly reuse accepted claims across sections.
+Application code preserves review limitations, validates individual list/table citations, and maps
+readable references back to stable evidence IDs. Repairs include the failed draft and validation error.
+
+OpenAI now uses native Responses structured function calls, with GPT-5.4 mini selected after small
+development trials. A transactional SQLite ledger reserves estimated cost before requests and settles
+reported tokens even when schema validation fails. This makes the $17 local experiment budget
+enforceable across concurrent local workers. It is not a distributed billing system.
+
+The [new reports and evaluation results](../reports/showcase/README.md) include a fresh quick run,
+a deep writer replay holding evidence and review constant, and a technical-topic re-review/rewrite.
+All three avoided fallback. The deep writer comparison reduced exact repeated paragraphs from 17
+to zero and added three cited comparison rows. These are structural improvements on development
+cases, not proof of factual accuracy. Comparative overstatement and semantic repetition remain
+visible in the raw samples. The original reports above have not been overwritten.
+
+The implementation, model choice, reproduction commands, and unresolved risks are documented in
+[output quality](output-quality.md). This provides a concrete engineering story: observed failure,
+targeted changes, regression protection, measured costs, inspectable output, and explicit limits.
+
 ## What I would measure next
 
 Further live runs are not required to improve the evaluation discipline. The existing artifacts
@@ -125,8 +149,9 @@ can seed offline checks for:
 - conclusion quality and recommendation completeness;
 - fallback usefulness when model prose is rejected.
 
-A small versioned evaluation set would make prompt, model, and validator changes reviewable in CI.
-New paid live runs could then be reserved for deliberate release checkpoints.
+The versioned development cases and structural metrics now exist. The next evaluation should add
+held-out topics and independent sentence-level support judgments, plus a human rubric for decision
+usefulness and repetition. Paid live runs can remain deliberate release checkpoints.
 
 ## Takeaway
 

@@ -3,7 +3,7 @@ import re
 from collections.abc import Mapping
 from enum import StrEnum
 from pathlib import Path
-from typing import Any
+from typing import Any, Literal
 
 import yaml
 from pydantic import BaseModel, ConfigDict, Field, SecretStr, model_validator
@@ -21,6 +21,7 @@ class ModelTarget(BaseModel):
     provider: ModelProvider
     model_id: str = Field(min_length=1)
     temperature: float = Field(default=0.2, ge=0, le=2)
+    reasoning_effort: Literal["none", "low", "medium", "high"] = "low"
     max_tokens: int = Field(default=4096, ge=1)
     timeout_seconds: float = Field(default=90, gt=0)
     max_attempts: int = Field(default=2, ge=1, le=5)

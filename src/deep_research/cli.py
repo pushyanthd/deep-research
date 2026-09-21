@@ -316,13 +316,19 @@ def _write_completed_run(output: Path, run: ResearchRun, output_fn: OutputFn) ->
 
 
 def _display_limitations(run: ResearchRun, output_fn: OutputFn) -> None:
-    limitations = list(run.graph_checkpoint.limitations)
-    review = run.graph_checkpoint.review
-    if review is not None:
-        limitations.extend(review.limitations)
+    report = run.graph_checkpoint.report
+    if report is not None:
+        # Completed output must not repeat stale "no evidence" messages from before repair.
+        # Historical fetch/repair diagnostics remain available in the run checkpoint.
+        section = report.markdown.partition("## Limitations\n\n")[2].split("\n\n## ")[0]
+        limitations = [line[2:] for line in section.splitlines() if line.startswith("- ")]
+    elif run.graph_checkpoint.review is not None:
+        limitations = list(run.graph_checkpoint.review.limitations)
+    else:
+        limitations = list(run.graph_checkpoint.limitations)
     limitations = list(dict.fromkeys(limitations))
     if limitations:
-        output_fn("\nReviewer and workflow limitations:")
+        output_fn("\nReport limitations:")
         for limitation in limitations:
             output_fn(f"  - {limitation}")
 

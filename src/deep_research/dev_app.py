@@ -38,7 +38,8 @@ def build_local_runtime(settings: AppSettings | None = None) -> LocalDevelopment
     repository = InMemoryRunRepository()
     dispatcher = InMemoryJobDispatcher()
     control = RunControlService(repository, retention_days=configured.run_retention_days)
-    gateway = ModelGateway(models)
+    gateway = ModelGateway(models, spend_limit_usd=configured.openai_spend_limit_usd,
+                           spend_ledger_path=configured.openai_spend_ledger_path)
     worker = create_worker(
         settings=configured,
         gateway=gateway,

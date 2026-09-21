@@ -9,7 +9,7 @@ Status labels:
 - **Implemented** — present in the repository and covered by deterministic tests.
 - **Partial** — an important slice exists, but the end-user or production path is incomplete.
 - **Designed** — described in the architecture plan but not implemented here.
-- **External verification** — exercised only by opt-in tests or the two committed live-run artifacts.
+- **External verification** — exercised by opt-in tests, recorded live runs, or labeled replays.
 
 ## Research workflow
 
@@ -22,7 +22,7 @@ Status labels:
 | Evidence review and repair | Implemented | Source scoring, coverage checks, contradictions, unsupported claims, and bounded targeted repairs |
 | Report generation | Implemented | Structured draft, outline and citation validation, deterministic fallback, Markdown artifact |
 | Follow-up generation | Implemented | Typed, prioritized, section-linked questions; fallback remains intentionally conservative |
-| Complete public-web run | External verification | Covered by the opt-in live workflow and two committed raw report artifacts |
+| Complete public-web run | External verification | Fresh quick run and historical full runs; current deep and technical artifacts are explicitly labeled replays |
 
 ## Evidence and safety
 
@@ -33,7 +33,7 @@ Status labels:
 | Citation resolution | Implemented | Finalization checks citations against sources available to each report section |
 | Prompt-injection boundary | Implemented | Agents have no direct tools; untrusted inputs are labeled as data; the application owns execution |
 | Public URL/SSRF controls | Implemented | URL shape, DNS resolution, address space, redirects, ports, and browser subresources are guarded |
-| Mermaid validation | Implemented | Unsafe or invalid generated diagrams are omitted with a prose fallback |
+| Mermaid validation | Implemented | Unsafe or invalid diagrams are omitted; cited fallback prose is validated and omission is recorded |
 | Automated citation entailment evaluation | Designed | Structural provenance is enforced; semantic entailment benchmarking is not yet implemented |
 
 ## Runtime and control plane
@@ -72,10 +72,10 @@ Status labels:
 |---|---|---|
 | Amazon Bedrock | Implemented | YAML-routed Strands model target using the AWS credential chain |
 | Anthropic direct | Implemented | YAML-routed Strands model target using an API key |
-| OpenAI direct | Implemented | YAML-routed Strands model target using an API key |
+| OpenAI direct | Implemented | YAML-routed Responses API calls, strict closed schemas, bounded retries, and token/cost ledger |
 | Role-specific routing | Implemented | Ordered target lists, environment substitution, retry, and provider fallback |
 | Live provider verification | External verification | Opt-in only because it consumes credentials and model budget |
-| Provider quality regression suite | Designed | No fixed, versioned output-quality benchmark is included yet |
+| Provider quality regression suite | Partial | Versioned live cases, frozen-evidence/report replays, structural diagnostics, and failure regression tests; no calibrated semantic benchmark |
 
 ## Production target
 
@@ -90,22 +90,28 @@ Status labels:
 | Load and failure-injection testing | Designed | Deterministic failure-path tests exist; no production load-test suite is included |
 | CI | Implemented | GitHub Actions runs Ruff and the deterministic test suite on Python 3.13 |
 
+The current output pipeline and local OpenAI cost controls are documented in
+[Output quality](output-quality.md). Current samples and their generation methods are recorded in
+[evaluation results](../reports/showcase/README.md).
+
 ## Known output-quality limitations
 
-The two reports under [`reports/`](../reports/) are unedited outputs from completed runs. Both used
+The two original reports at the root of [`reports/`](../reports/) are historical outputs. Both used
 the deterministic fallback because model-authored prose failed a citation validation gate. The
 fallback preserved citation integrity, limitations, and contradictions, but it produced repetitive
 claim-list prose rather than a polished narrative.
 
 The deep artifact also contains scope leakage from adjacent television generations, a nominal
 comparison-table section without an actual table, and an overly verbose validation diagnostic.
-These are documented rather than hidden. See the [case study](case-study.md) for the engineering
-interpretation and the changes already made after those runs.
+The current [showcase reports](../reports/showcase/README.md) avoid fallback and include an actual
+deep comparison table. They still exhibit semantic repetition and some comparative overstatement;
+structural citation checks do not establish sentence-level support. See the
+[case study](case-study.md) for the engineering interpretation and the changes made after the original runs.
 
 ## Near-term priorities
 
-1. Add a fixed evaluation corpus for scope adherence, citation entailment, synthesis quality, and
-   fallback readability without relying on new live runs for every change.
+1. Expand the versioned cases and frozen-evidence replay workflow into a calibrated semantic
+   benchmark with independent labels and repeated runs. See [Output quality](output-quality.md).
 2. Improve deterministic report composition and sanitize user-facing failure diagnostics.
 3. Add artifact storage and deletion abstractions before claiming a deployable multi-user service.
 4. Add infrastructure as code, telemetry, load testing, and operational runbooks for a production

@@ -65,7 +65,7 @@ models:
     assert route[0][1].api_key.get_secret_value() == "from-dotenv-settings"
 
 
-def test_selected_direct_provider_fails_fast_without_key(tmp_path: Path) -> None:
+def test_selected_direct_provider_fails_fast_without_key(tmp_path: Path, monkeypatch) -> None:
     config = tmp_path / "models.yaml"
     config.write_text(
         """
@@ -77,7 +77,8 @@ models:
 """,
         encoding="utf-8",
     )
-    settings = AppSettings(model_config_path=config, model_provider="openai")
+    monkeypatch.delenv("OPENAI_API_KEY", raising=False)
+    settings = AppSettings(_env_file=None, model_config_path=config, model_provider="openai")
 
     with pytest.raises(ValueError, match="OPENAI_API_KEY"):
         settings.validate_model_credentials()

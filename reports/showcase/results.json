@@ -1,0 +1,128 @@
+{
+  "evaluation_date": "2026-09-21",
+  "model": "gpt-5.4-mini",
+  "limitations": [
+    "Structural diagnostics are not semantic accuracy scores.",
+    "Development cases were used for iteration, not held-out evaluation.",
+    "Historical comparisons changed models, prompts and evidence; they are not controlled A/B tests.",
+    "Only the deep writer comparison holds both evidence and review constant.",
+    "Costs estimate OpenAI usage at uncached input prices; external search costs are excluded."
+  ],
+  "reports": {
+    "quick": {
+      "artifact": "quick.md",
+      "generation_kind": "fresh end-to-end run",
+      "sha256": "47d891255665ae7b197e54754b51960aad4d9a1d77e93d1740d4c7811693c486",
+      "metrics": {
+        "words": 924,
+        "cited_sources": 5,
+        "unresolved_citations": [],
+        "duplicate_paragraphs": 0,
+        "table_data_rows": 0,
+        "fallback": false,
+        "empty_evidence_sections": 0
+      },
+      "usage_for_this_generation": {
+        "calls": 14,
+        "input_tokens": 171850,
+        "output_tokens": 39816,
+        "estimated_cost_usd": 0.3080595,
+        "reserved_usd": 0
+      },
+      "elapsed_seconds": 282.66
+    },
+    "deep": {
+      "artifact": "deep.md",
+      "generation_kind": "report-only replay; frozen evidence and review",
+      "sha256": "dc914a93dc5b290ad98e409dbc2b9f2ca4a235a87a96315c5e5002e8da67edd3",
+      "metrics": {
+        "words": 1619,
+        "cited_sources": 11,
+        "unresolved_citations": [],
+        "duplicate_paragraphs": 0,
+        "table_data_rows": 3,
+        "fallback": false,
+        "empty_evidence_sections": 0
+      },
+      "usage_for_this_generation": {
+        "calls": 2,
+        "input_tokens": 135933,
+        "output_tokens": 21890,
+        "estimated_cost_usd": 0.20045475000000001,
+        "reserved_usd": 0
+      },
+      "local_request_sha256": "5c986c2a74e94b2cdea05639228e5b1e0975e634d6ad2ce88421c9d4109de042",
+      "same_evidence_previous_report_metrics": {
+        "words": 1875,
+        "cited_sources": 11,
+        "unresolved_citations": [],
+        "duplicate_paragraphs": 17,
+        "table_data_rows": 0,
+        "fallback": true,
+        "empty_evidence_sections": 0
+      },
+      "underlying_full_run_usage_including_previous_writer": {
+        "calls": 31,
+        "input_tokens": 859004,
+        "output_tokens": 44987,
+        "estimated_cost_usd": 0.8466945,
+        "reserved_usd": 0
+      },
+      "underlying_full_run_elapsed_seconds": 797.17,
+      "underlying_research": {
+        "searches": 38,
+        "fetched_sources": 16
+      }
+    },
+    "retrieval": {
+      "artifact": "retrieval.md",
+      "generation_kind": "re-review and report replay; frozen evidence",
+      "sha256": "3e03a6afc52e1ec22be085df52e4ffcb336636087cf70402d14caf408b131a51",
+      "metrics": {
+        "words": 949,
+        "cited_sources": 4,
+        "unresolved_citations": [],
+        "duplicate_paragraphs": 0,
+        "table_data_rows": 0,
+        "fallback": false,
+        "empty_evidence_sections": 0
+      },
+      "usage_for_this_generation": {
+        "calls": 2,
+        "input_tokens": 36010,
+        "output_tokens": 16230,
+        "estimated_cost_usd": 0.1000425,
+        "reserved_usd": 0
+      },
+      "local_request_sha256": "a8e431a8da213b0c0485563fec7d7ef8de4cb136954c8c1e4c294a7f73af966b"
+    }
+  },
+  "historical_reports": {
+    "quick": {
+      "artifact": "../Quick research sample report.md",
+      "sha256": "1a82fbc5238db29165156212a9e266ba186094280d1cc2764aca6168d1783646",
+      "metrics": {
+        "words": 1079,
+        "cited_sources": 5,
+        "unresolved_citations": [],
+        "duplicate_paragraphs": 1,
+        "table_data_rows": 0,
+        "fallback": true,
+        "empty_evidence_sections": 0
+      }
+    },
+    "deep": {
+      "artifact": "../Deep research sample report.md",
+      "sha256": "8ef2a42ff58b780948db19e0f6ade09b7584c9ba4ac371db4e075a5470fda898",
+      "metrics": {
+        "words": 3293,
+        "cited_sources": 21,
+        "unresolved_citations": [],
+        "duplicate_paragraphs": 10,
+        "table_data_rows": 0,
+        "fallback": true,
+        "empty_evidence_sections": 1
+      }
+    }
+  }
+}

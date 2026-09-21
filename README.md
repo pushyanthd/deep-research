@@ -2,205 +2,195 @@
 
 [![CI](https://github.com/FlashPD/deep-research/actions/workflows/ci.yml/badge.svg)](https://github.com/FlashPD/deep-research/actions/workflows/ci.yml)
 
-**A production-oriented, multi-agent research backend that turns an ambiguous question into a
-bounded, evidence-backed Markdown report. Models propose typed decisions; application code owns
-permissions, budgets, evidence provenance, durability, and publication gates.**
+**An evidence-backed research backend with bounded agent execution, reviewable decisions, and
+measured cost.**
 
-Python 3.13 · AWS Strands Agents · FastAPI · Pydantic v2 · Playwright · Tavily ·
-Anthropic / OpenAI / Amazon Bedrock · DynamoDB / SQS adapters · Cognito JWT auth
+Deep Research turns a question into an approved research plan, parallel web investigations, an
+evidence review, and a cited Markdown report. Quick mode produces a decision brief; deep mode
+supports broader comparisons and targeted evidence repair. Models propose structured decisions.
+Application code controls tools, budgets, state transitions, and report validation.
 
-This project is a portfolio case study in building reliable systems around probabilistic models.
-It is not presented as a deployed SaaS product. The complete local workflow works end to end;
-production-facing adapters are implemented for selected boundaries, while infrastructure, UI, and
-operational gaps are documented explicitly in [Implementation status](docs/implementation-status.md).
+**[Quick report](reports/showcase/quick.md)** ·
+**[Deep comparison](reports/showcase/deep.md)** ·
+**[Technical brief](reports/showcase/retrieval.md)** ·
+**[Engineering case study](docs/case-study.md)**
 
-## What this project demonstrates
+Python 3.13 · FastAPI · Pydantic v2 · OpenAI Responses API · AWS Strands Agents ·
+Tavily · Playwright · DynamoDB / SQS adapters · Cognito
 
-- **Bounded agent orchestration.** Clarification, planning, research, review, reporting, and
-  follow-up generation run as a deterministic graph rather than an autonomous swarm.
-- **Typed model boundaries.** Every agent returns a validated Pydantic contract. Models do not
-  control credentials, persistence, browser sessions, tenant identity, or budget enforcement.
-- **Evidence provenance.** Search snippets are discovery metadata only. Report claims trace back
-  to exact segments from pages fetched by the application.
-- **Human approval before spend.** Research cannot begin until the exact plan version and SHA-256
-  hash are approved.
-- **Durable execution.** Phase jobs, optimistic revisions, idempotency keys, checkpoints, and
-  cooperative cancellation support recovery when durable DynamoDB/SQS adapters are configured.
-- **Fail-closed publication.** Invalid citations, malformed model output, unsafe diagrams, and
-  unsupported claims are repaired, rejected, or deterministically degraded rather than silently
-  shipped.
+## See the results
 
-The repository contains approximately 9,500 lines of application code and 5,000 lines of tests.
-The deterministic suite currently contains **162 passing tests**, with a separate opt-in live suite.
+The current OpenAI configuration uses GPT-5.4 mini, with more reasoning allocated to review and
+reporting. These are unedited generated artifacts from the September 2026 development evaluation.
 
-## Workflow
+| Report | What to inspect | Generation method | Cited sources | Estimated OpenAI cost |
+|---|---|---|---:|---:|
+| [Quick: Samsung S90D buyer brief](reports/showcase/quick.md) | Conditional buying advice, drawbacks, and evidence gaps | Fresh end-to-end run; 4.7 minutes | 5 | $0.31 |
+| [Deep: three OLED TVs compared](reports/showcase/deep.md) | Cited comparison table and recommendations by use case | Report-only replay with evidence and review held constant | 11 | $0.20 for replay |
+| [Technical: retrieval architecture](reports/showcase/retrieval.md) | BM25 vs. hybrid retrieval, failure modes, and evaluation design | Re-review and rewrite of captured evidence | 4 | $0.10 for replay |
 
-```mermaid
-flowchart TD
-    U([User submits topic]) --> C[Clarifier Agent]
-    C -->|typed questions| Q([User answers])
-    Q --> C
-    C -->|ResearchBrief| P[Planning Agent]
-    P --> A{{Approve exact<br/>plan version + hash}}
-    A -->|reject| X([Cancelled])
-    A -->|approve| R
-    subgraph R[Parallel research workstreams]
-        W1[Researcher 1] --- W2[Researcher 2] --- WN[Researcher N]
-    end
-    R -->|EvidencePackage| E[Evidence Reviewer]
-    E -->|targeted repair<br/>within budget| R
-    E -->|accepted| G[Report Generator]
-    E -->|no backed claims| F([Failed safely])
-    G --> N[Questions Agent]
-    N --> Z[Deterministic finalization]
-    Z --> D([Markdown report])
-```
+All three produced model-authored reports without fallback, unresolved citation IDs, or empty
+evidence sections. In the deep writer comparison, holding evidence and review constant reduced
+exact repeated paragraphs from **17 to 0** and added **three cited comparison rows**.
 
-The run record is the source of truth. Each phase persists a revision and an immutable event, so
-an API connection does not own execution progress. Research workstreams run in dependency waves
-and merge through stable, content-derived source, excerpt, and claim IDs.
+Replay costs exclude evidence collection. The underlying deep full run cost approximately $0.85,
+including its earlier writer attempt. Estimates exclude search-provider charges. These are small
+development checks, not held-out accuracy benchmarks: valid citations do not establish sentence-level
+support, and comparative overstatement and semantic repetition remain areas for improvement.
+See the [evaluation notes](reports/showcase/README.md) and [recorded metrics](reports/showcase/results.json).
 
 ## Engineering decisions
 
-### Agents propose; the application disposes
+The core engineering problem is keeping model judgment useful while making execution inspectable,
+recoverable, and bounded. The implementation separates those responsibilities at explicit boundaries.
 
-Agents never receive browser, search, database, or authentication tools. They produce structured
-requests and decisions; application-owned adapters execute permitted operations against the
-approved plan. This keeps model behavior inside enforceable security and cost boundaries.
+| Concern | Implementation | Why it matters |
+|---|---|---|
+| Model reliability | Pydantic contracts, structured function calls, bounded repair with validation feedback | Malformed output cannot silently become application state |
+| Research scope | Approval binds to the exact plan version and SHA-256 hash; workstreams have explicit question and section IDs | Execution remains tied to an inspectable plan |
+| Evidence quality | Claims select captured text segments; review scores sources and rejects unsupported claims | The writer receives supporting passages and eligible claims, not just search snippets |
+| Report integrity | Section-level claim permissions, citation checks for paragraphs/list items/table rows, preserved review limitations | Synthesis can reuse evidence without losing its provenance |
+| Cost control | Transactional SQLite reservations before OpenAI calls; settlement from reported tokens | Concurrent local processes share a persistent spend ceiling |
+| Recovery | Checkpoints, optimistic revisions, node-scoped idempotency, bounded redelivery, cooperative cancellation | Configured durable adapters support recovery across worker interruptions |
+| Security boundaries | Application-owned tools, public-URL and redirect checks, tenant-scoped persistence and retrieval | Model output and fetched content do not control credentials, identity, or unrestricted tool access |
 
-### Evidence has a deterministic chain of custody
+The [case study](docs/case-study.md) follows the original output failures through diagnosis,
+implementation changes, and evaluation. [Output quality](docs/output-quality.md) explains the model
+experiments, evidence-selection policy, cost accounting, and remaining trade-offs.
 
-```text
-report citation [S…]
-  -> SourceRecord (canonical URL, content hash, access date)
-  -> EvidenceClaim
-  -> EvidenceExcerpt (verbatim text and location)
-  -> CapturedMaterial fetched by the application
+## Architecture
+
+```mermaid
+flowchart TD
+    U([Research question]) --> C[Clarify requirements]
+    C --> P[Generate typed plan]
+    P --> A{Approve plan version and hash}
+    A -->|Cancel| X([Cancelled])
+    A -->|Approve| R[Parallel research workstreams]
+    R --> T[Application-owned search and fetch]
+    T --> E[Normalize claims and evidence]
+    E --> V[Review coverage and support]
+    V -->|Targeted repair within budget| R
+    V -->|Insufficient evidence| F([Fail with reason])
+    V -->|Accepted evidence| G[Generate report and follow-up questions]
+    G --> D[Validate citations and finalize]
+    D --> O([Cited Markdown report])
 ```
 
-The finalizer rejects citations that do not resolve through this chain. Reviewer limitations and
-unresolved contradictions are preserved in the report rather than optimized away by the writer.
+The FastAPI control plane manages run creation, approval, cancellation, and event polling. Workers
+execute checkpointed phases; the run record is the source of truth. Research workstreams execute
+in dependency waves and merge evidence using stable, content-derived IDs. OpenAI uses the Responses
+API; Anthropic and Bedrock use Strands adapters behind the same typed gateway.
 
-### Failures are classified by whether retrying can help
+Evidence connects through explicit records:
 
-Transient provider and infrastructure failures may be retried. Deterministic validation failures,
-output ceilings, rejected credentials, exhausted budgets, and insufficient evidence fail fast or
-take a bounded fallback path. Duplicate queue deliveries are absorbed through optimistic revisions
-and node-scoped idempotency.
+```text
+Captured page or PDF → verbatim excerpt → normalized claim → review → report section
+                                                                       ↓
+                                                        [S1] → stable source record
+```
 
-### Untrusted content stays data
+Search snippets guide discovery and cannot serve as final evidence. The writer excludes rejected
+claims and claims attached to sources below the configured review threshold. Source scores are
+model judgments; deterministic validation enforces the references and permissions, not factual truth.
 
-Fetched pages, user text, upload metadata, plans, and evidence are labeled as untrusted data in
-prompts. The application—not page content—owns scope, tools, identity, source budgets, and state
-transitions. Browser requests also pass through URL, DNS, redirect, port, and address-space checks.
+## Execution budgets
 
-For the original system design, including the intended AWS deployment, see the unchanged
-[architecture plan](arch_plan/deep-research-system-plan.md). For a precise designed-versus-built
-breakdown, see [Implementation status](docs/implementation-status.md).
-
-## Depth presets
-
-| Preset | Target duration | Search queries | Accepted sources | Parallel workstreams | Repair rounds |
+| Mode | Time target | Search ceiling | Source ceiling | Research concurrency | Repair rounds |
 |---|---:|---:|---:|---:|---:|
-| `quick` | 5 min | 5 (+1 adaptive) | 10 | 3 | 1 |
+| `quick` | 5 min | 5 + 1 adaptive | 10 | 3 | 1 |
 | `standard` | 15 min | 20 | 30 | 6 | 2 |
 | `deep` | 20 min | 50 | 75 | 10 | 2 |
 
-These are hard application ceilings, not suggestions left to the planner.
+Application code enforces resource limits; time targets are not latency guarantees. Separately,
+`OPENAI_SPEND_LIMIT_USD` defaults to **$17 across runs sharing the local ledger**. Reservations survive
+restarts, and uncertain attempts retain their reservation. This ceiling covers this application's
+OpenAI calls, not search charges, other providers, or unrelated API clients.
 
-## Case study and raw artifacts
+## Run locally
 
-Two real runs are committed exactly as the CLI produced them:
-
-| Artifact | Result |
-|---|---|
-| [Quick research report](reports/Quick%20research%20sample%20report.md) | 2 workstreams, 5 cited sources, 1 repair round |
-| [Deep research report](reports/Deep%20research%20sample%20report.md) | 6 workstreams, 41 searches, 46 fetched sources, 225 reviewed claims, 36 cited sources |
-
-Both runs exercised the deterministic report fallback after model-authored prose failed a hard
-citation check. The raw artifacts therefore demonstrate the integrity boundary and recovery path,
-but they also expose real output-quality limitations. They have not been hand-polished or
-regenerated. The [portfolio case study](docs/case-study.md) analyzes what worked, what failed, the
-trade-offs involved, and what changed afterward.
-
-## Quickstart
-
-Requires Python 3.13, a Tavily API key, and one configured model provider.
+Requires Python 3.13, an OpenAI API key, and a Tavily API key. Anthropic and Bedrock are also
+configurable through [model routing](config/models.yaml).
 
 ```bash
+git clone https://github.com/FlashPD/deep-research.git
+cd deep-research
 python3.13 -m venv .venv
 source .venv/bin/activate
-python -m pip install --upgrade pip
-pip install -e '.[dev]'
+python -m pip install -e '.[dev]'
 playwright install chromium
 cp .env.example .env
 ```
 
-Populate `.env`, then verify the deterministic toolchain without making model or web requests:
+Set `OPENAI_API_KEY` and `TAVILY_API_KEY` in `.env`. The example already selects OpenAI and
+GPT-5.4 mini. Run an interactive research session:
+
+```bash
+deep-research-run \
+  "Compare BM25 and hybrid retrieval for an internal technical documentation assistant" \
+  --depth quick --output research-reports/
+```
+
+The CLI asks for missing requirements and plan approval, then saves the report. Use `--depth deep`
+for a broader investigation. To expose the local API with its worker in the same process:
+
+```bash
+deep-research-dev
+# API documentation: http://127.0.0.1:8000/docs
+```
+
+Local mode uses an in-memory run store and a fixed development identity. DynamoDB/SQS and Cognito
+adapters are available for separately configured environments. See [development and operations](docs/development.md).
+
+## Verification and evaluation
+
+The deterministic suite has **185 passing tests** at this revision. CI runs lint and tests on
+Python 3.13 without requiring model credentials or paid requests.
 
 ```bash
 pytest
 ruff check src tests
 ```
 
-Run the interactive local workflow:
+Coverage includes schema repair, evidence isolation, citation validation, concurrent spend
+reservations, SSRF controls, cancellation, checkpoint resumption, idempotency, Cognito verification,
+DynamoDB persistence, uploads, and CLI behavior.
+
+Live evaluations are explicitly opt-in and consume API budget:
 
 ```bash
-deep-research-run "Give me a summary of Samsung's S90D TV" --depth quick --output reports/
+python -m deep_research.evaluation --case oled-quick --live
+python -m deep_research.evaluation --case oled-deep --live
+python -m deep_research.evaluation --case retrieval-quick --live
 ```
 
-Or start the local API and worker in a single process:
+[Versioned cases](evals/cases.json) define the inputs and review criteria. The evaluation runner saves
+reports, checkpoints, captured model outputs, token usage, and structural metrics under ignored
+`research-reports/`. Frozen-evidence replays let development comparisons isolate review or writing
+changes without repeating web collection. Captured requests remain local; see
+[replay instructions and limitations](docs/output-quality.md#reproduce-and-inspect).
 
-```bash
-deep-research-dev  # http://127.0.0.1:8000
-```
+## Implementation scope
 
-The local runtime uses in-memory persistence and dispatch. Configure DynamoDB and SQS to exercise
-cross-process durability. Live runs consume model, search, and browser resources; they are never
-part of the default test command.
+The complete local research backend is implemented and exercised end to end. DynamoDB/SQS,
+Cognito, document ingestion, and OpenSearch adapters have deterministic coverage. Cloud deployment,
+infrastructure as code, a web UI, S3 artifact storage, SSE, production telemetry, and load testing
+remain outside the completed scope. The project does not claim a deployed production service.
 
-## Verification
+The next evaluation milestone is independent sentence-level support labeling and held-out topics.
+The next operational milestone is a deployed environment with telemetry and failure-injection tests.
+The [implementation status](docs/implementation-status.md) distinguishes implemented adapters from
+the [original AWS target architecture](arch_plan/deep-research-system-plan.md).
 
-```bash
-pytest            # deterministic suite; live tests excluded by default
-pytest -m live    # opt-in external model, Tavily, and public-web integration tests
-ruff check src tests
-```
+## Code and documentation
 
-The deterministic suite covers agent validation and repair, planning constraints, evidence
-merging, citation resolution, SSRF controls, page caching, cancellation, failure classification,
-checkpoint resumption, budget clamping, idempotency, Cognito verification, DynamoDB persistence,
-upload ingestion, and CLI behavior.
-
-## Repository guide
-
-```text
-src/deep_research/
-  agents/          typed clarifier, planner, researcher, reviewer, report, and question agents
-  contracts/       Pydantic contracts for every model and application boundary
-  orchestration/   bounded Strands graph topology
-  services/        run lifecycle, approval hashing, idempotency, and events
-  worker.py        checkpointed phase execution, budgets, cancellation, and failure policy
-  persistence/     in-memory and DynamoDB repositories
-  jobs/            in-memory and SQS dispatchers
-  tools/           Tavily, Playwright, SSRF protection, URL normalization, and page cache
-  uploads/         document parsing, quarantine/scanning, and OpenSearch retrieval
-  auth/            Cognito access-token verification and local development identity
-  api/             FastAPI control plane
-tests/             deterministic tests plus an opt-in live suite
-reports/           unedited outputs from two completed runs
-```
-
-## Documentation
-
-- [Portfolio case study](docs/case-study.md) — design decisions, run results, failure analysis, and lessons
-- [Implementation status](docs/implementation-status.md) — implemented, partial, and planned capabilities
-- [Development and operations](docs/development.md) — CLI, configuration, API, testing, and troubleshooting
-- [Original architecture plan](arch_plan/deep-research-system-plan.md) — full initial design and AWS target state
-
-## Current scope
-
-The strongest completed surface is the local end-to-end backend and its deterministic reliability
-boundaries. The repository does not currently include a web UI, AWS infrastructure as code,
-AgentCore deployment, S3 artifact storage, SSE streaming, or production telemetry. Those omissions
-are deliberate and visible; see [Implementation status](docs/implementation-status.md) for detail.
+| Start here | What it contains |
+|---|---|
+| [Worker](src/deep_research/worker.py) | Phase execution, checkpoints, budgets, and failure policy |
+| [Agents](src/deep_research/agents/) and [contracts](src/deep_research/contracts/) | Structured decisions, evidence review, report generation, and validation |
+| [Model gateway](src/deep_research/models/gateway.py) and [spend ledger](src/deep_research/models/spend.py) | Provider routing, retries, usage accounting, and reservations |
+| [Tools](src/deep_research/tools/) | Search, page/PDF capture, caching, and URL controls |
+| [Persistence](src/deep_research/persistence/) and [jobs](src/deep_research/jobs/) | In-memory and DynamoDB/SQS boundaries |
+| [Tests](tests/) and [evaluation runner](src/deep_research/evaluation.py) | Deterministic regression coverage and opt-in live experiments |
+| [Current reports and metrics](reports/showcase/README.md) | Inspectable output, generation methods, costs, and quality limitations |
+| [Engineering case study](docs/case-study.md) | Design decisions, observed failures, and the output-quality iteration |

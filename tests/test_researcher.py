@@ -581,11 +581,11 @@ async def test_deep_synthesis_is_capped_by_truncation_without_a_repair_call() ->
     result = await ResearchAgent(gateway, adapter).research(request)
 
     assert len(gateway.calls) == 1, "overshoot is truncated, never sent back for repair"
-    assert '"max_synthesis_claims": 40' in gateway.calls[0]["prompt"]
+    assert '"max_synthesis_claims": 20' in gateway.calls[0]["prompt"]
     assert '"max_claim_chars": 400' in gateway.calls[0]["prompt"]
-    assert len(result.evidence.claims) == 40
+    assert len(result.evidence.claims) == 20
     assert result.evidence.claims[0].normalized_claim == "Deep finding number 0."
-    assert any("5 lower-priority" in item and "40-claim" in item for item in result.limitations)
+    assert any("25 lower-priority" in item and "20-claim" in item for item in result.limitations)
 
 
 @pytest.mark.asyncio

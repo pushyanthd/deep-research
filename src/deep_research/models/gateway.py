@@ -1,12 +1,16 @@
 import asyncio
+import copy
+import json
 import logging
 from collections.abc import Callable
 from dataclasses import dataclass
+from pathlib import Path
 from typing import Any, Protocol, TypeVar
 
-from pydantic import BaseModel
+from pydantic import BaseModel, ValidationError
 
 from deep_research.models.config import ModelProvider, ModelSettings, ModelTarget
+from deep_research.models.spend import SpendLedger, SpendLimitError
 
 OutputT = TypeVar("OutputT", bound=BaseModel)
 logger = logging.getLogger(__name__)
@@ -37,6 +41,7 @@ _PROVIDER_REJECTION_MARKERS = (
     "unrecognizedclientexception",
     "expiredtokenexception",
     "invalidsignatureexception",
+    "insufficient_quota",
     "validationexception",
     "resourcenotfoundexception",
 )
@@ -90,9 +95,24 @@ class ModelGateway:
         self,
         settings: ModelSettings,
         agent_factory: Callable[..., Any] | None = None,
+        *,
+        spend_limit_usd: float = 17.0,
+        spend_ledger_path: Path = Path(".data/openai-spend.sqlite"),
     ) -> None:
         self._settings = settings
         self._agent_factory = agent_factory
+        self._spend_limit_usd = spend_limit_usd
+        self._spend_ledger_path = spend_ledger_path
+        self._ledger: SpendLedger | None = None
+        self._call_ids: list[str] = []
+        self.capture_outputs = False
+        self.captured_outputs: list[dict[str, Any]] = []
+
+    def usage_summary(self) -> dict[str, int | float]:
+        if self._ledger is None:
+            return dict(calls=0, input_tokens=0, output_tokens=0,
+                        estimated_cost_usd=0.0, reserved_usd=0.0)
+        return self._ledger.summary(self._call_ids)
 
     async def generate_structured(
         self,
@@ -112,12 +132,18 @@ class ModelGateway:
             )
             for attempt_index in range(target.max_attempts):
                 try:
-                    return await asyncio.wait_for(
+                    result = await asyncio.wait_for(
                         self._invoke(target, prompt, output_type, system_prompt),
                         timeout=target.timeout_seconds,
                     )
+                    if self.capture_outputs:
+                        self.captured_outputs.append({
+                            "role": role, "model": target.model_id,
+                            "output": result.model_dump(mode="json"),
+                        })
+                    return result
                 except (Exception, asyncio.CancelledError) as exc:
-                    if isinstance(exc, asyncio.CancelledError):
+                    if isinstance(exc, (asyncio.CancelledError, SpendLimitError)):
                         raise
                     failure = ModelAttemptFailure(
                         target_name=target_name,
@@ -142,6 +168,15 @@ class ModelGateway:
                         failure.message or "<no detail>",
                     )
                     logger.debug("model invocation traceback", exc_info=True)
+                    if isinstance(exc, ValidationError):
+                        errors = [
+                            {"path": item["loc"], "error": item["msg"]}
+                            for item in exc.errors(include_url=False)
+                        ]
+                        prompt += (
+                            "\nThe prior structured result failed schema validation. Correct "
+                            "these fields in your complete result: " + json.dumps(errors)[:2000]
+                        )
                     if is_output_limit_failure(failure) or is_provider_rejection_failure(
                         failure
                     ):
@@ -156,6 +191,8 @@ class ModelGateway:
         output_type: type[OutputT],
         system_prompt: str,
     ) -> OutputT:
+        if target.provider is ModelProvider.OPENAI and self._agent_factory is None:
+            return await self._invoke_openai(target, prompt, output_type, system_prompt)
         agent_factory = self._agent_factory
         if agent_factory is None:
             from strands import Agent
@@ -172,6 +209,57 @@ class ModelGateway:
         if isinstance(structured, output_type):
             return structured
         return output_type.model_validate(structured)
+
+    async def _invoke_openai(
+        self, target: ModelTarget, prompt: str, output_type: type[OutputT], system_prompt: str
+    ) -> OutputT:
+        """One forced function call per attempt, with no implicit agent or SDK retries."""
+        from openai import AsyncOpenAI
+
+        schema, strict = _output_schema(output_type)
+        if self._ledger is None:
+            self._ledger = SpendLedger(self._spend_ledger_path, self._spend_limit_usd)
+        # A UTF-8 byte ceiling deliberately overestimates text tokens; overhead covers the
+        # fixed message/tool envelope. Uncertain failures retain the entire reservation.
+        input_bound = len((system_prompt + prompt + json.dumps(schema)).encode()) + 4096
+        reservation = self._ledger.reserve(target.model_id, input_bound, target.max_tokens)
+        self._call_ids.append(reservation)
+        client_args: dict[str, Any] = {"timeout": target.timeout_seconds, "max_retries": 0}
+        if target.api_key is not None:
+            client_args["api_key"] = target.api_key.get_secret_value()
+        if target.base_url:
+            client_args["base_url"] = target.base_url
+        sampling: dict[str, Any] = (
+            {"reasoning": {"effort": target.reasoning_effort}}
+            if target.model_id.startswith("gpt-5") else {"temperature": target.temperature}
+        )
+        async with AsyncOpenAI(**client_args) as client:
+            response = await client.responses.create(
+                model=target.model_id,
+                input=[
+                    {"role": "system", "content": system_prompt},
+                    {"role": "user", "content": prompt},
+                ],
+                tools=[{"type": "function",
+                    "name": "return_result", "description": "Return the requested typed result.",
+                    "parameters": schema, "strict": strict,
+                }],
+                tool_choice={"type": "function", "name": "return_result"},
+                parallel_tool_calls=False,
+                max_output_tokens=target.max_tokens,
+                store=False,
+                **sampling,
+            )
+        if response.usage is not None:
+            self._ledger.settle(
+                reservation, response.usage.input_tokens, response.usage.output_tokens
+            )
+        if response.status == "incomplete":
+            raise ValueError("maximum token limit reached before structured output completed")
+        calls = [item for item in response.output if item.type == "function_call"]
+        if len(calls) != 1 or calls[0].name != "return_result":
+            raise ValueError("OpenAI did not return the requested structured function call")
+        return output_type.model_validate_json(calls[0].arguments)
 
     @staticmethod
     def _create_model(target: ModelTarget) -> Any:
@@ -227,6 +315,35 @@ def _safe_error_detail(exc: BaseException) -> str:
     if len(detail) <= _MAX_ERROR_DETAIL_CHARS:
         return detail
     return f"{detail[: _MAX_ERROR_DETAIL_CHARS - 3]}..."
+
+
+def _output_schema(output_type: type[BaseModel]) -> tuple[dict, bool]:
+    """Use constrained decoding when the contract has no open-ended dictionary fields.
+
+    ResearchBrief.definitions intentionally remains a map; that contract uses non-strict
+    function calling plus Pydantic validation. Closed report/review/research schemas are strict.
+    """
+    original = output_type.model_json_schema()
+    schema = copy.deepcopy(original)
+    compatible = True
+
+    def visit(value):
+        nonlocal compatible
+        if isinstance(value, dict):
+            value.pop("default", None)
+            if value.get("type") == "object":
+                if isinstance(value.get("additionalProperties"), dict):
+                    compatible = False
+                value["additionalProperties"] = False
+                value["required"] = list(value.get("properties", {}))
+            for child in value.values():
+                visit(child)
+        elif isinstance(value, list):
+            for child in value:
+                visit(child)
+
+    visit(schema)
+    return (schema, True) if compatible else (original, False)
 
 
 def is_output_limit_failure(failure: ModelAttemptFailure) -> bool:

@@ -51,7 +51,10 @@ def create_app(
     async def lifespan(app: FastAPI) -> AsyncIterator[None]:
         settings = get_settings()
         if app.state.expose_agent_debug_routes:
-            configured_gateway = gateway or ModelGateway(settings.load_models())
+            configured_gateway = gateway or ModelGateway(
+                settings.load_models(), spend_limit_usd=settings.openai_spend_limit_usd,
+                spend_ledger_path=settings.openai_spend_ledger_path,
+            )
             app.state.clarifier = ClarifierAgent(configured_gateway)
             app.state.planner = PlanningAgent(configured_gateway)
             app.state.questions = QuestionsAgent(configured_gateway)

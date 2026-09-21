@@ -6,7 +6,9 @@ from collections.abc import Awaitable, Callable
 from datetime import UTC, datetime
 from io import BytesIO
 from typing import Any
-from urllib.parse import urlsplit
+from urllib.parse import urljoin, urlsplit
+
+import httpx
 
 from deep_research.contracts.evidence import SourceType
 from deep_research.contracts.research import FetchedPage, FetchPageRequest
@@ -145,6 +147,11 @@ class PlaywrightPageFetcher:
     async def fetch_page(self, request: FetchPageRequest) -> FetchedPage:
         guard = PublicUrlGuard()
         await guard.ensure(request.url)
+        parsed = urlsplit(request.url)
+        if parsed.path.casefold().endswith(".pdf") or (
+            parsed.hostname == "arxiv.org" and parsed.path.startswith("/pdf/")
+        ):
+            return await self._fetch_pdf(request.url, guard)
         try:
             from playwright.async_api import TimeoutError as PlaywrightTimeoutError
             from playwright.async_api import async_playwright
@@ -184,11 +191,16 @@ class PlaywrightPageFetcher:
             page = await context.new_page()
             page.set_default_timeout(self._navigation_timeout_ms)
             try:
-                response = await page.goto(
-                    request.url,
-                    wait_until="domcontentloaded",
-                    timeout=self._navigation_timeout_ms,
-                )
+                try:
+                    response = await page.goto(
+                        request.url,
+                        wait_until="domcontentloaded",
+                        timeout=self._navigation_timeout_ms,
+                    )
+                except Exception as exc:
+                    if "Download is starting" not in str(exc):
+                        raise
+                    return await self._fetch_pdf(request.url, guard)
                 if response is None:
                     raise RuntimeError("browser navigation returned no response")
                 if response.status >= 400:
@@ -224,7 +236,7 @@ class PlaywrightPageFetcher:
                     source_type = SourceType.PUBLIC_PDF
                     location = "Extracted PDF text"
                 else:
-                    text = await page.locator("body").inner_text()
+                    text = await _main_content_text(page)
                     text = _normalize_page_text(text)
                     title = (await page.title()).strip() or response.url
                     source_type = SourceType.WEB_PAGE
@@ -261,6 +273,43 @@ class PlaywrightPageFetcher:
                 await context.close()
                 await browser.close()
 
+    async def _fetch_pdf(self, url: str, guard: PublicUrlGuard) -> FetchedPage:
+        """Headless Chromium downloads PDFs instead of returning a navigable response."""
+        async with httpx.AsyncClient(
+            follow_redirects=False, timeout=self._navigation_timeout_ms / 1000,
+        ) as client:
+            for redirect in range(self._max_redirects + 1):
+                await guard.ensure(url)
+                async with client.stream("GET", url) as response:
+                    if response.is_redirect:
+                        if redirect == self._max_redirects:
+                            raise RuntimeError("PDF exceeded the redirect ceiling")
+                        location = response.headers.get("location")
+                        if not location:
+                            raise RuntimeError("PDF redirect has no location")
+                        url = urljoin(url, location)
+                        continue
+                    response.raise_for_status()
+                    body = bytearray()
+                    async for chunk in response.aiter_bytes():
+                        body.extend(chunk)
+                        if len(body) > self._max_response_bytes:
+                            raise RuntimeError("PDF exceeded the response-size ceiling")
+                    if not body.startswith(b"%PDF-"):
+                        raise RuntimeError("downloaded document was not a PDF")
+                    text = await asyncio.to_thread(
+                        _extract_pdf_text, bytes(body), self._max_pdf_pages
+                    )
+                    if not text.strip() or len(text) > self._max_content_chars:
+                        raise RuntimeError("PDF text was empty or exceeded the content ceiling")
+                    return FetchedPage(
+                        final_url=url, title=_filename_from_url(url) or "Public PDF",
+                        content=text, source_type=SourceType.PUBLIC_PDF,
+                        access_date=datetime.now(UTC).date().isoformat(),
+                        location="Extracted PDF text",
+                    )
+        raise RuntimeError("PDF exceeded the redirect ceiling")  # pragma: no cover
+
 
 def _redirect_count(request: Any) -> int:
     count = 0
@@ -277,6 +326,17 @@ async def _meta_content(page: Any, selector: str) -> str | None:
         return None
     value = await locator.get_attribute("content")
     return value.strip()[:500] if value and value.strip() else None
+
+
+async def _main_content_text(page: Any) -> str:
+    """Prefer the article/main landmark over menus and unrelated recommendation widgets."""
+    for selector in ("article", "main", '[role="main"]'):
+        locator = page.locator(selector)
+        if await locator.count() == 1:
+            text = await locator.inner_text()
+            if len(text.strip()) >= 500:
+                return text
+    return await page.locator("body").inner_text()
 
 
 async def _first_meta_content(page: Any, selectors: list[str]) -> str | None:

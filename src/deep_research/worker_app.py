@@ -31,7 +31,11 @@ def create_worker(
 ) -> DurableWorker:
     """Compose a worker; injected local adapters can be shared with the API in tests/dev."""
     configured = settings or get_settings()
-    model_gateway = gateway or ModelGateway(configured.validate_model_credentials())
+    model_gateway = gateway or ModelGateway(
+        configured.validate_model_credentials(),
+        spend_limit_usd=configured.openai_spend_limit_usd,
+        spend_ledger_path=configured.openai_spend_ledger_path,
+    )
     repository = run_repository or _build_repository(configured)
     dispatcher = job_dispatcher or _build_dispatcher(configured)
 

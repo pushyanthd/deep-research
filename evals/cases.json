@@ -1,0 +1,20 @@
+[
+  {
+    "id": "oled-quick",
+    "depth": "quick",
+    "topic": "Give a concise US buyer summary of the 65-inch Samsung S90D (QN65S90D, 2024 model). Audience: home theater buyer, mixed movies and PS5 gaming, moderate ambient light. Explain picture quality, gaming, drawbacks, panel variation and a conditional buying verdict. Distinguish dated launch pricing from verified current offers; omit current prices if unverified. Exclude S90F and other successor models. Use official specifications and independent measurements. No clarification needed; proceed with these assumptions.",
+    "rubric": ["Exact model and region", "Evidence-backed pros and cons", "Conditional verdict", "No invented live prices"]
+  },
+  {
+    "id": "oled-deep",
+    "depth": "deep",
+    "topic": "Compare the 65-inch 2024 Samsung S90D (QN65S90D), LG C4 (OLED65C4), and Sony BRAVIA 8 (K-65XR80) for a US home theater purchase. Audience: technically literate buyer. Priorities: movies in a dim room (60%), PS5 gaming (30%), sports and streaming (10%); occasional daytime viewing. Include an evidence-backed comparison table, picture quality and HDR format trade-offs, motion and processing, HDMI/gaming limitations, audio and software, and conditional recommendations. No fixed purchase budget: assess value only when comparable dated prices are verified, otherwise say price is unknown. Use official specs and independent measured reviews. Exact 65-inch US 2024 models only; exclude S90F, LG C5, and BRAVIA 8 II. Do not equate brightness numbers measured under different conditions. Model year is not a source publication cutoff. No clarification needed; proceed with these assumptions.",
+    "rubric": ["Exact models without substitution", "Cited comparison table", "Measurement comparability", "Conditional recommendations", "Explicit price uncertainty"]
+  },
+  {
+    "id": "retrieval-quick",
+    "depth": "quick",
+    "topic": "For a senior AI engineer building an English-language internal documentation assistant, compare BM25-only retrieval with hybrid BM25 plus dense retrieval and reranking. Corpus: 100,000 technical documents with exact product codes; 20 queries per second; a 1-second p95 retrieval budget; no private data available for this research. Give a concise architecture recommendation, failure modes and an offline evaluation plan. Prefer original papers and official documentation. Do not invent benchmark improvements for our corpus or require a particular vendor. Audience and region: US engineering team. No clarification needed; proceed with these assumptions.",
+    "rubric": ["Conditional architecture recommendation", "No fabricated corpus-specific gains", "Concrete evaluation metrics", "Primary evidence"]
+  }
+]

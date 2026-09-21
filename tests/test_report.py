@@ -84,6 +84,7 @@ async def test_invalid_mermaid_is_omitted_after_one_repair() -> None:
 
     assert "```mermaid" not in artifact.markdown
     assert "Diagram omitted under strict validation" in artifact.markdown
+    assert "The market progresses from measurement" not in artifact.markdown
     # The worker refuses to finalize an artifact carrying any invalid diagram record, so an
     # omitted diagram must leave no validation entry behind.
     assert artifact.mermaid_validation == []
@@ -197,7 +198,7 @@ async def test_report_retries_once_with_compact_prompt_after_output_limit() -> N
 
     assert len(gateway.calls) == 2
     assert '"mode": "compact_retry"' in gateway.calls[1]["prompt"]
-    assert artifact.generation_metadata.prompt_version == "report-v2"
+    assert artifact.generation_metadata.prompt_version == "report-v3"
 
 
 @pytest.mark.asyncio
@@ -256,7 +257,7 @@ async def test_quick_report_trims_oversized_prose_after_one_repair() -> None:
     artifact = await ReportGenerationAgent(gateway).generate(request)
 
     assert len(gateway.calls) == 2
-    assert artifact.generation_metadata.prompt_version == "report-v2"
+    assert artifact.generation_metadata.prompt_version == "report-v3"
     methodology = artifact.markdown.split("## Methodology\n\n")[1].split("\n\n## ")[0]
     assert len(methodology) <= 600
     assert methodology.endswith("carefully.")
@@ -319,7 +320,7 @@ async def test_report_accepts_multi_source_brackets_without_falling_back() -> No
     artifact = await ReportGenerationAgent(gateway).generate(request)
 
     assert len(gateway.calls) == 1
-    assert artifact.generation_metadata.prompt_version == "report-v2"
+    assert artifact.generation_metadata.prompt_version == "report-v3"
     assert "[S1] [S2]" in artifact.markdown
     assert artifact.cited_source_ids == ["S1", "S2"]
 
