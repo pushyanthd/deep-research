@@ -46,7 +46,7 @@ deep-research-run = "deep_research.cli:main"
 deep-research-worker = "deep_research.worker_app:main"
 
 [project.urls]
-Repository = "https://github.com/FlashPD/deep-research"
+Repository = "https://github.com/pushyanthd/deep-research"
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/deep_research"]

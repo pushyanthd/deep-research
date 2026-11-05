@@ -1,6 +1,6 @@
 # Deep Research
 
-[![CI](https://github.com/FlashPD/deep-research/actions/workflows/ci.yml/badge.svg)](https://github.com/FlashPD/deep-research/actions/workflows/ci.yml)
+[![CI](https://github.com/pushyanthd/deep-research/actions/workflows/ci.yml/badge.svg)](https://github.com/pushyanthd/deep-research/actions/workflows/ci.yml)
 
 **An evidence-backed research backend with bounded agent execution, reviewable decisions, and
 measured cost.**
@@ -113,7 +113,7 @@ Requires Python 3.13, an OpenAI API key, and a Tavily API key. Anthropic and Bed
 configurable through [model routing](config/models.yaml).
 
 ```bash
-git clone https://github.com/FlashPD/deep-research.git
+git clone https://github.com/pushyanthd/deep-research.git
 cd deep-research
 python3.13 -m venv .venv
 source .venv/bin/activate
